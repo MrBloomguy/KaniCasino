@@ -275,7 +275,7 @@ function App() {
   return (
     <div
       key={language}
-      className="flex flex-col min-h-screen items-start justify-start bg-[#151225] text-white"
+      className="flex flex-col min-h-screen items-start justify-start bg-[#070d14] text-white"
     >
       <UserContext.Provider
         value={{

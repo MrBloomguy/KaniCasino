@@ -7,15 +7,15 @@ import i18n from "../../i18n";
 const Banner: React.FC<BannerProps> = ({ left, right }) => {
   return (
     <div
-      className={`w-full max-w-[1920px] h-[460px]  bg-no-repeat hidden md:flex bg-cover bg-center`}
+      className={`relative w-full max-w-[1440px] h-[300px] sm:h-[360px] lg:h-[430px] rounded-2xl overflow-hidden bg-no-repeat flex bg-cover bg-center shadow-[0_20px_70px_rgba(0,0,0,0.35)]`}
       style={{ backgroundImage: `url(${left.image})` }}
     >
       <div className="flex items-center justify-center w-full ">
-        <div className="flex max-w-7xl w-full items-center justify-between">
+        <div className="flex max-w-7xl w-full h-full items-center justify-between px-5 sm:px-10 lg:px-16">
           {
             left.title !== "hide" ? (
-              <div className="w-72 h-56 notched bg-[#CF3464] flex items-center justify-center">
-                <div className="w-[calc(100%-4px)] h-[calc(100%-4px)] notched bg-[#111121] hover:bg-opacity-95 transition-all flex flex-col items-center justify-center px-6">
+              <div className="w-[min(78%,330px)] h-auto min-h-44 rounded-2xl border border-white/15 bg-[#101622]/85 backdrop-blur-md flex items-center justify-center shadow-2xl">
+                <div className="w-full h-full rounded-2xl bg-[#101622]/60 hover:bg-[#101622]/80 transition-all flex flex-col items-center justify-center px-6 py-7">
                   <div className="flex flex-col ">
                     <span className="text-lg font-semibold text-white text-start">
                       {left?.title}
