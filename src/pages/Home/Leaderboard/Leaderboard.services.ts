@@ -53,8 +53,8 @@ export const useLeaderboardServices = () => {
       endsAt.current = new Date(next.endsAt).getTime();
       rolledOver.current = false;
       setBoard(next);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setBoard(null);
     } finally {
       setLoading(false);
     }
