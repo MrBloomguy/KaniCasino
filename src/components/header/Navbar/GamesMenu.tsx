@@ -56,10 +56,10 @@ const GamesMenu = () => {
         ref={trigger}
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        className="group relative flex shrink-0 items-center gap-2 border-0 bg-transparent p-0 text-xs font-normal focus:outline-none 2xl:text-sm"
+        className={`group relative flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-semibold transition-colors focus:outline-none 2xl:px-3 2xl:text-xs ${here || open ? "bg-[#55ff91]/[0.12]" : "hover:bg-white/[0.06]"}`}
       >
         <NavFlare active={here} lit={open} />
-        <span className={`relative transition-colors ${here ? "text-white" : "text-[#625F7E] group-hover:text-gray-200"}`}>
+        <span className={`relative transition-colors ${here || open ? "text-[#55ff91]" : "text-[#7f8ba7] group-hover:text-[#dbe5f5]"}`}>
           <IoGameControllerOutline className="text-2xl" />
         </span>
         <span
@@ -77,7 +77,7 @@ const GamesMenu = () => {
           <div
             ref={panel}
             style={{ top: at.top, left: at.left }}
-            className="notched fixed z-[120] grid grid-cols-2 gap-1 bg-[#212031] p-2 shadow-2xl"
+            className="notched fixed z-[120] grid grid-cols-2 gap-1.5 rounded-2xl border border-white/[0.1] bg-[#101b2d] p-2.5 shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
           >
             {games.map((game) => (
               <Link

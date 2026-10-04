@@ -147,10 +147,16 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
 
   return (
     <div className="w-full flex justify-center">
-      <nav className="sticky top-3 z-40 py-3 px-4 sm:px-6 lg:px-8 bg-[#101622]/95 backdrop-blur-xl border border-white/[0.08] shadow-[0_18px_60px_rgba(0,0,0,0.28)] rounded-2xl w-[calc(100vw-1.5rem)] max-w-[1440px] flex justify-center ">
-        <div className="flex items-center justify-between w-full ">
-          <div className="xl:hidden">
-            <FaBars onClick={toggleSidebar} className="text-2xl cursor-pointer" />
+      <nav className="sticky top-3 z-40 w-[calc(100vw-1.5rem)] max-w-[1440px] rounded-2xl border border-white/[0.09] bg-[#0d1524]/[0.97] px-3 py-2.5 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:px-4 lg:px-5" aria-label="Primary navigation">
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <div className="flex items-center gap-3 xl:hidden">
+            <button type="button" onClick={toggleSidebar} className="grid size-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]" aria-label="Open menu" aria-expanded={openSidebar}>
+              <FaBars className="text-base" />
+            </button>
+            <Link to="/" className="flex items-center gap-2" aria-label={i18n.t("nav.kanicasino")}>
+              <img src="/images/logo.webp" alt="" className="size-8 object-contain" />
+              <span className="hidden text-sm font-black tracking-tight text-white sm:block">{i18n.t("nav.kanicasino")}</span>
+            </Link>
           </div>
           <div className="hidden xl:flex min-w-0 flex-1 items-center">
             <Link to="/" className="shrink-0">
@@ -165,7 +171,7 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
                   className="size-10 object-contain drop-shadow-[0_0_18px_rgba(85,255,145,0.35)]"
                 />
                 <div className="hidden md:flex flex-col justify-center">
-                  <div className="font-normal text-xl text-white">
+                  <div className="font-black text-lg tracking-tight text-white">
                     {i18n.t("nav.kanicasino")}
                   </div>
 
@@ -185,7 +191,7 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
             {
               <div
                 ref={linksRef}
-                className="flex min-w-0 flex-1 items-center gap-4 2xl:gap-6 ml-4 xl:ml-8"
+                className="ml-5 flex min-w-0 flex-1 items-center gap-1.5 rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1.5 xl:ml-7 2xl:gap-2"
               >
                 <GamesMenu />
                 {links.map((link, index) => (
@@ -201,10 +207,12 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
                 openNotifications={openNotifications} setOpenNotifications={setOpenNotifications}
                 Logout={Logout} />
             ) : (
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
                 <MainButton
                   text={i18n.t("nav.signIn")}
-                  onClick={toggleUserFlow} />
+                  onClick={toggleUserFlow}
+                  textSize="text-xs sm:text-sm"
+                  type="success" />
               </div>
             )}
           </div>

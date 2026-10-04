@@ -13,15 +13,15 @@ const NavItem: React.FC<NavItemProps> = ({ link, active }) => (
     title={link.name}
     onClick={link.onClick}
     aria-current={active ? "page" : undefined}
-    className="group relative flex shrink-0 cursor-pointer items-center gap-2 text-xs font-normal 2xl:text-sm"
+    className={`group relative flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-semibold transition-colors 2xl:px-3 2xl:text-xs ${active ? "bg-[#55ff91]/[0.12]" : "hover:bg-white/[0.06]"}`}
   >
     <NavFlare active={active} />
-    <span className={`relative transition-colors ${active ? "text-white" : "text-[#625F7E] group-hover:text-gray-200"}`}>
+    <span className={`relative transition-colors ${active ? "text-[#55ff91]" : "text-[#7f8ba7] group-hover:text-[#dbe5f5]"}`}>
       {link.icon}
     </span>
     <span
       className={`nav-label relative whitespace-nowrap transition-colors ${
-        active ? "text-white" : "text-ink-soft group-hover:text-white"
+        active ? "text-white" : "text-[#9aa6bc] group-hover:text-white"
       }`}
     >
       {link.name}
