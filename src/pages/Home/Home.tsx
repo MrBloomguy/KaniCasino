@@ -30,6 +30,13 @@ const Home = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [mostOpened, setMostOpened] = useState<MostOpenedCase[]>([]);
   const [mostOpenedLoading, setMostOpenedLoading] = useState<boolean>(true);
+  const [activeLobbyTab, setActiveLobbyTab] = useState("all");
+
+  const selectLobbyTab = (tab: string) => {
+    setActiveLobbyTab(tab);
+    const target = document.getElementById(tab === "all" ? "original-games" : `${tab}-games`);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const getNewCases = async () => {
     setLoading(true);
@@ -179,10 +186,10 @@ const Home = () => {
             <LobbyPromo title="Get weekly cashback" copy="10% back weekly" image="/images/marisaBanner.webp" />
           </div>
           <LobbyStrip><LobbyPill>◉ Daily Wheel</LobbyPill><LobbyPill>♛ VIP Club</LobbyPill><LobbyPill>✦ Bonuses</LobbyPill></LobbyStrip>
-          <div className="flex gap-2 overflow-x-auto rounded-lg bg-[#111833] p-2 text-[10px] font-bold text-slate-400"><span className="rounded bg-[#202958] px-3 py-1 text-white">All</span><span className="px-3 py-1">Popular</span><span className="px-3 py-1">Slots</span><span className="px-3 py-1">Live</span><span className="px-3 py-1">Crash</span><span className="px-3 py-1">Providers</span></div>
-          <LobbySection title="Original Games"><LobbyGameGrid>{[["/images/crash/idle.gif", "Crash"], ["/images/coinHeads.webp", "Roulette"], ["/images/slot/wild.webp", "Slots"], ["/images/mines.svg", "Mines"], ["/images/dice.svg", "Dice"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
-          <LobbySection title="Popular Games"><LobbyGameGrid>{[["/images/banners/blackjack-plate.webp", "3 Witch Pots"], ["/images/boo.webp", "Le Viking"], ["/images/upgrade.webp", "Mummy's Mines"], ["/images/banners/plinko-plate.webp", "Thunderkick"], ["/images/homeBanner.webp", "Dog House"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
-          <LobbyFeatureGrid><LobbyFeature title="Daily missions" image="/images/homeBanner.webp" /><LobbyFeature title="Top winter games" image="/images/marisaBanner.webp" /></LobbyFeatureGrid>
+          <div className="flex gap-2 overflow-x-auto rounded-lg bg-[#111833] p-2 text-[10px] font-bold text-slate-400" role="tablist" aria-label="Lobby categories">{[["all", "All"], ["popular", "Popular"], ["slots", "Slots"], ["live", "Live"], ["crash", "Crash"]].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={activeLobbyTab === value} onClick={() => selectLobbyTab(value)} className={`shrink-0 rounded px-3 py-1 transition-colors ${activeLobbyTab === value ? "bg-[#202958] text-white" : "hover:bg-[#182142]"}`}>{label}</button>)}<button type="button" onClick={() => selectLobbyTab("all")} className="shrink-0 px-3 py-1 hover:text-white">Providers</button></div>
+          <LobbySection id="original-games" title="Original Games"><LobbyGameGrid>{[["/images/crash/idle.gif", "Crash"], ["/images/coinHeads.webp", "Roulette"], ["/images/slot/wild.webp", "Slots"], ["/images/mines.svg", "Mines"], ["/images/dice.svg", "Dice"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
+          <LobbySection id="popular-games" title="Popular Games"><LobbyGameGrid>{[["/images/banners/blackjack-plate.webp", "3 Witch Pots"], ["/images/boo.webp", "Le Viking"], ["/images/upgrade.webp", "Mummy's Mines"], ["/images/banners/plinko-plate.webp", "Thunderkick"], ["/images/homeBanner.webp", "Dog House"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
+          <div id="slots-games" className="scroll-mt-4"><LobbyFeatureGrid><LobbyFeature title="Daily missions" image="/images/homeBanner.webp" /><LobbyFeature title="Top winter games" image="/images/marisaBanner.webp" /></LobbyFeatureGrid></div>
           <Carousel
           autoPlay={true}
           infiniteLoop={true}
