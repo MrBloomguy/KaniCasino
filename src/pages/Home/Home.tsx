@@ -20,7 +20,7 @@ import { BannerProps } from "./Types";
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
 import i18n from "../../i18n";
-import CasinoLobbyShell, { LobbyFeature, LobbyFeatureGrid, LobbyGame, LobbyGameGrid, LobbyPill, LobbyPromo, LobbySection, LobbyStrip } from "./CasinoLobbyShell";
+import CasinoLobbyShell, { LobbyFeature, LobbyFeatureGrid, LobbyPill, LobbyPromo, LobbyStrip } from "./CasinoLobbyShell";
 
 // its own namespace, so a category literally called "Recommended" cannot take the anchor
 const TOP_CASES_ID = "top-cases";
@@ -34,8 +34,7 @@ const Home = () => {
 
   const selectLobbyTab = (tab: string) => {
     setActiveLobbyTab(tab);
-    const target = document.getElementById(tab === "all" ? "original-games" : `${tab}-games`);
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("slots-games")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const getNewCases = async () => {
@@ -187,8 +186,6 @@ const Home = () => {
           </div>
           <LobbyStrip><LobbyPill>◉ Daily Wheel</LobbyPill><LobbyPill>♛ VIP Club</LobbyPill><LobbyPill>✦ Bonuses</LobbyPill></LobbyStrip>
           <div className="flex gap-2 overflow-x-auto rounded-lg bg-[#111833] p-2 text-[10px] font-bold text-slate-400" role="tablist" aria-label="Lobby categories">{[["all", "All"], ["popular", "Popular"], ["slots", "Slots"], ["live", "Live"], ["crash", "Crash"]].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={activeLobbyTab === value} onClick={() => selectLobbyTab(value)} className={`shrink-0 rounded px-3 py-1 transition-colors ${activeLobbyTab === value ? "bg-[#202958] text-white" : "hover:bg-[#182142]"}`}>{label}</button>)}<button type="button" onClick={() => selectLobbyTab("all")} className="shrink-0 px-3 py-1 hover:text-white">Providers</button></div>
-          <LobbySection id="original-games" title="Original Games"><LobbyGameGrid>{[["/images/crash/idle.gif", "Crash"], ["/images/coinHeads.webp", "Roulette"], ["/images/slot/wild.webp", "Slots"], ["/images/mines.svg", "Mines"], ["/images/dice.svg", "Dice"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
-          <LobbySection id="popular-games" title="Popular Games"><LobbyGameGrid>{[["/images/banners/blackjack-plate.webp", "3 Witch Pots"], ["/images/boo.webp", "Le Viking"], ["/images/upgrade.webp", "Mummy's Mines"], ["/images/banners/plinko-plate.webp", "Thunderkick"], ["/images/homeBanner.webp", "Dog House"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
           <div id="slots-games" className="scroll-mt-4"><LobbyFeatureGrid><LobbyFeature title="Daily missions" image="/images/homeBanner.webp" /><LobbyFeature title="Top winter games" image="/images/marisaBanner.webp" /></LobbyFeatureGrid></div>
           <Carousel
           autoPlay={true}
