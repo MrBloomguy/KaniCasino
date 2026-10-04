@@ -15,7 +15,6 @@ import { getPendingMissions } from "./services/missions/MissionService";
 import { toastMissionComplete } from "./pages/Missions/components/missionCompleteToast";
 import NavigationBridge from "./components/NavigationBridge";
 import PageMeta from "./components/PageMeta";
-import BootLoader from "./components/BootLoader";
 import { useTranslation } from "react-i18next";
 import OnboardingModal from "./components/OnboardingModal";
 import GiftPrompt from "./components/header/GiftPrompt";
@@ -276,7 +275,7 @@ function App() {
   return (
     <div
       key={language}
-      className="flex flex-col min-h-screen items-start justify-start bg-[#151225] text-white"
+      className="flex flex-col min-h-screen items-start justify-start bg-[#070d14] text-white"
     >
       <UserContext.Provider
         value={{
@@ -289,7 +288,7 @@ function App() {
         }}
       >
         <SessionStatsProvider>
-        <Suspense fallback={<BootLoader />}>
+        <Suspense fallback={null}>
             <Router>
               <SkeletonTheme highlightColor="#161427" baseColor="#1c1a31">
                 <ScrollToTop />

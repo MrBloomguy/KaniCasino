@@ -147,7 +147,7 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
 
   return (
     <div className="w-full flex justify-center">
-      <nav className=" py-4 px-8 bg-[#19172D] w-[calc(100vw-2rem)] max-w-[1920px] flex justify-center notched ">
+      <nav className="sticky top-3 z-40 py-3 px-4 sm:px-6 lg:px-8 bg-[#101622]/95 backdrop-blur-xl border border-white/[0.08] shadow-[0_18px_60px_rgba(0,0,0,0.28)] rounded-2xl w-[calc(100vw-1.5rem)] max-w-[1440px] flex justify-center ">
         <div className="flex items-center justify-between w-full ">
           <div className="xl:hidden">
             <FaBars onClick={toggleSidebar} className="text-2xl cursor-pointer" />
@@ -162,7 +162,7 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
                 <img
                   src="/images/logo.webp"
                   alt={i18n.t("common.logo")}
-                  className="w-12 h-12 object-contain"
+                  className="size-10 object-contain drop-shadow-[0_0_18px_rgba(85,255,145,0.35)]"
                 />
                 <div className="hidden md:flex flex-col justify-center">
                   <div className="font-normal text-xl text-white">
