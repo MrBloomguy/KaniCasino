@@ -9,7 +9,6 @@ import SocketConnection from "./services/socket"
 import { SESSION_EXPIRED_EVENT } from "./services/api";
 import { clearTokens } from "./services/auth/authUtils";
 import ScrollToTop from "./components/ScrollToTop";
-import Footer from "./components/Footer";
 import {disableReactDevTools} from '@fvilers/disable-react-devtools';
 import { getPendingMissions } from "./services/missions/MissionService";
 import { toastMissionComplete } from "./pages/Missions/components/missionCompleteToast";
@@ -319,14 +318,6 @@ function App() {
                     style={{ paddingLeft: chat.shift }}
                   >
                     <AppRoutes />
-                  </div>
-                  {/* the footer spans the window whatever the page does, so it always
-                      gives the rail its width rather than measuring for it */}
-                  <div
-                    className="w-full pt-12 transition-[padding] duration-200"
-                    style={{ paddingLeft: chat.railWidth }}
-                  >
-                    <Footer />
                   </div>
                 </div>
                 <ChatDock open={chat.open} wide={chat.wide} onClose={chat.close} />

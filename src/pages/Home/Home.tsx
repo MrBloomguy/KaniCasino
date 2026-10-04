@@ -20,6 +20,7 @@ import { BannerProps } from "./Types";
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css"; // requires a loader
 import i18n from "../../i18n";
+import CasinoLobbyShell, { LobbyFeature, LobbyFeatureGrid, LobbyGame, LobbyGameGrid, LobbyPill, LobbyPromo, LobbySection, LobbyStrip } from "./CasinoLobbyShell";
 
 // its own namespace, so a category literally called "Recommended" cannot take the anchor
 const TOP_CASES_ID = "top-cases";
@@ -170,9 +171,19 @@ const Home = () => {
   ];
 
   return (
-    <main className="w-full flex justify-center px-3 sm:px-5 lg:px-8 pb-12">
-      <div className="flex flex-col gap-6 w-full max-w-[1440px] ">
-        <Carousel
+    <CasinoLobbyShell>
+      <main className="w-full flex justify-center px-0 pb-12">
+        <div className="flex w-full max-w-[930px] flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.5fr_1fr]">
+            <LobbyPromo title="Claim up to 300% and 100FS" copy="Start your journey with extra rewards" image="/images/homeBanner.webp" />
+            <LobbyPromo title="Get weekly cashback" copy="10% back weekly" image="/images/marisaBanner.webp" />
+          </div>
+          <LobbyStrip><LobbyPill>◉ Daily Wheel</LobbyPill><LobbyPill>♛ VIP Club</LobbyPill><LobbyPill>✦ Bonuses</LobbyPill></LobbyStrip>
+          <div className="flex gap-2 overflow-x-auto rounded-lg bg-[#111833] p-2 text-[10px] font-bold text-slate-400"><span className="rounded bg-[#202958] px-3 py-1 text-white">All</span><span className="px-3 py-1">Popular</span><span className="px-3 py-1">Slots</span><span className="px-3 py-1">Live</span><span className="px-3 py-1">Crash</span><span className="px-3 py-1">Providers</span></div>
+          <LobbySection title="Original Games"><LobbyGameGrid>{[["/images/crash/idle.gif", "Crash"], ["/images/coinHeads.webp", "Roulette"], ["/images/slot/wild.webp", "Slots"], ["/images/mines.svg", "Mines"], ["/images/dice.svg", "Dice"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
+          <LobbySection title="Popular Games"><LobbyGameGrid>{[["/images/banners/blackjack-plate.webp", "3 Witch Pots"], ["/images/boo.webp", "Le Viking"], ["/images/upgrade.webp", "Mummy's Mines"], ["/images/banners/plinko-plate.webp", "Thunderkick"], ["/images/homeBanner.webp", "Dog House"]].map(([image, title]) => <LobbyGame key={title} image={image} title={title} />)}</LobbyGameGrid></LobbySection>
+          <LobbyFeatureGrid><LobbyFeature title="Daily missions" image="/images/homeBanner.webp" /><LobbyFeature title="Top winter games" image="/images/marisaBanner.webp" /></LobbyFeatureGrid>
+          <Carousel
           autoPlay={true}
           infiniteLoop={true}
           showThumbs={false}
@@ -230,8 +241,9 @@ const Home = () => {
             ))
           )}
         </CaseField>
-      </div>
-    </main>
+        </div>
+      </main>
+    </CasinoLobbyShell>
   );
 };
 
