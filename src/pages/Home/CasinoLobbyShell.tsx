@@ -13,8 +13,8 @@ const activity = [
 
 export default function CasinoLobbyShell({ children }: { children: ReactNode }) {
   return (
-    <div className="w-full bg-[#080d21] text-white">
-      <div className="mx-auto flex w-full max-w-[1500px] gap-3 px-2 py-2 lg:px-3">
+    <div className="min-h-screen w-full bg-[#080d21] text-white">
+      <div className="mx-auto flex w-full max-w-[1500px] gap-3 px-2 py-2 pb-24 lg:px-3 lg:pb-2">
         <aside className="hidden w-[174px] shrink-0 flex-col rounded-xl bg-[#151b3d] p-3 lg:flex">
           <div className="mb-5 flex items-center gap-2 px-2 text-lg font-black tracking-tight">
             <span className="text-[#2cc6ff]">PENGU</span><span className="rounded bg-[#2cc6ff] px-1 text-[#071227]">BET</span>
@@ -36,13 +36,17 @@ export default function CasinoLobbyShell({ children }: { children: ReactNode }) 
         </aside>
 
         <section className="min-w-0 flex-1">
-          <div className="mb-3 flex h-12 items-center justify-between rounded-xl bg-[#111833] px-4 shadow-lg">
-            <div className="flex items-center gap-2 text-base font-black lg:hidden"><span className="text-[#2cc6ff]">PENGU</span><span className="rounded bg-[#2cc6ff] px-1 text-[#071227]">BET</span></div>
-            <div className="hidden text-sm font-bold tracking-[0.2em] text-slate-300 lg:block">CASINO LOBBY</div>
-            <div className="flex items-center gap-2 text-xs"><div className="hidden rounded-md bg-[#080d21] px-3 py-2 text-slate-400 sm:block">⌕ Search</div><span className="rounded-md bg-[#202958] px-2 py-1">◐ 1,500 ⊕</span><span className="rounded-full bg-[#2cc6ff] px-2 py-1 text-[#071227]">P</span></div>
+          <div className="sticky top-2 z-30 mb-3 flex h-14 items-center justify-between rounded-2xl border border-white/[0.08] bg-[#111833]/95 px-3 shadow-[0_14px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl sm:px-4">
+            <button className="grid size-9 place-items-center rounded-xl bg-[#202958] text-lg text-slate-200 lg:hidden" aria-label="Open menu">☰</button>
+            <div className="flex items-center gap-2 text-base font-black"><span className="text-[#55ff91]">KANI</span><span className="rounded bg-[#55ff91] px-1 text-[#071227]">CASINO</span></div>
+            <div className="flex items-center gap-2 text-xs"><div className="hidden rounded-xl border border-white/10 bg-[#080d21] px-3 py-2 text-slate-400 sm:block">⌕ Search games</div><span className="rounded-xl bg-[#202958] px-2.5 py-2 text-[#f4d35e]">◉ 1,500</span><span className="grid size-9 place-items-center rounded-full bg-[#55ff91] font-black text-[#071227]">P</span></div>
           </div>
           {children}
         </section>
+
+        <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 rounded-2xl border border-white/[0.1] bg-[#111833]/95 p-2 shadow-[0_18px_45px_rgba(0,0,0,0.42)] backdrop-blur-xl lg:hidden" aria-label="Mobile navigation">
+          {[["⌂", "Home"], ["◉", "Lobby"], ["♛", "Promos"], ["☰", "More"]].map(([icon, label], index) => <Link key={label} to={index === 0 ? "/" : "#"} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-bold ${index === 0 ? "bg-[#1d294e] text-[#55ff91]" : "text-slate-400"}`}><span className="text-base">{icon}</span>{label}</Link>)}
+        </nav>
 
         <aside className="hidden w-[190px] shrink-0 rounded-xl bg-[#111833] p-3 xl:block">
           <div className="mb-3 flex items-center justify-between text-[10px] font-bold text-slate-300"><span>30 Players Online</span><span className="size-2 rounded-full bg-[#2cc6ff]" /></div>
