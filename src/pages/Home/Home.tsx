@@ -170,8 +170,8 @@ const Home = () => {
   ];
 
   return (
-    <div className="w-full flex justify-center">
-      <div className=" flex-col w-full max-w-[1920px] ">
+    <main className="w-full flex justify-center px-3 sm:px-5 lg:px-8 pb-12">
+      <div className="flex flex-col gap-6 w-full max-w-[1440px] ">
         <Carousel
           autoPlay={true}
           infiniteLoop={true}
@@ -231,7 +231,7 @@ const Home = () => {
           )}
         </CaseField>
       </div>
-    </div>
+    </main>
   );
 };
 

@@ -96,7 +96,7 @@ function Footer() {
   ];
 
   return (
-    <footer className="flex flex-col items-center justify-center w-full py-6 text-white bg-[#110F1D] ">
+    <footer className="mt-10 flex flex-col items-center justify-center w-full py-10 px-5 text-white bg-[#0a1019] border-t border-white/[0.06] ">
       <Modal open={showModal} setOpen={setShowModal}>
         {modalContent}
       </Modal>

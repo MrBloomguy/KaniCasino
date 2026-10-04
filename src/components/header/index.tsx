@@ -109,7 +109,7 @@ const Header: React.FC<Header> = ({ onlineUsers, recentCaseOpenings, notificatio
 
 
   return (
-    <div className="flex flex-col p-4 w-full justify-center ">
+    <div className="flex flex-col gap-3 px-3 pt-3 pb-2 sm:px-5 lg:px-8 w-full justify-center ">
       <div className="flex pb-2 items-center">
         {items.map((item, index) => (
           <div
