@@ -65,7 +65,7 @@ const Modal: React.FC<ModalProps> = ({ children, open, setOpen, width = "600px" 
         >
           <IoMdClose />
         </button>
-        <div className="relative min-h-0 overflow-y-auto p-5 pt-14 sm:p-7 sm:pt-16">
+        <div className="relative min-h-0 overflow-y-auto p-5 pt-14 [scrollbar-width:none] sm:p-7 sm:pt-16 [&::-webkit-scrollbar]:hidden">
           {children}
         </div>
       </div>
