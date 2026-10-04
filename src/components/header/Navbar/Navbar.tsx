@@ -147,8 +147,8 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
 
   return (
     <div className="w-full flex justify-center">
-      <nav className="sticky top-3 z-40 w-[calc(100vw-1.5rem)] max-w-[1440px] rounded-2xl border border-white/[0.09] bg-[#0d1524]/[0.97] px-3 py-2.5 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:px-4 lg:px-5" aria-label="Primary navigation">
-        <div className="flex min-h-12 items-center justify-between gap-3">
+      <nav className="sticky top-3 z-40 w-[calc(100vw-1.5rem)] max-w-[1440px] rounded-2xl border border-white/[0.09] bg-[#0d1524]/[0.97] px-3 py-1.5 shadow-[0_18px_60px_rgba(0,0,0,0.34)] backdrop-blur-xl sm:px-4 lg:px-5" aria-label="Primary navigation">
+        <div className="flex min-h-10 items-center justify-between gap-3">
           <div className="flex items-center gap-3 xl:hidden">
             <button type="button" onClick={toggleSidebar} className="grid size-10 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.05] text-slate-200 transition hover:bg-white/[0.1]" aria-label="Open menu" aria-expanded={openSidebar}>
               <FaBars className="text-base" />
@@ -168,7 +168,7 @@ const Navbar: React.FC<Navbar> = ({ openNotifications, setOpenNotifications, ope
                 <img
                   src="/images/logo.webp"
                   alt={i18n.t("common.logo")}
-                  className="size-10 object-contain drop-shadow-[0_0_18px_rgba(85,255,145,0.35)]"
+                  className="size-8 object-contain drop-shadow-[0_0_18px_rgba(85,255,145,0.35)]"
                 />
                 <div className="hidden md:flex flex-col justify-center">
                   <div className="font-black text-lg tracking-tight text-white">
