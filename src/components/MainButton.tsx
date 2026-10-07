@@ -12,6 +12,7 @@ interface MainButton {
   type?: "button" | "danger" | "success" | "warning" | "info" | "dark";
   pulse?: boolean;
   textSize?: string;
+  compact?: boolean;
 }
 
 const MainButton: React.FC<MainButton> = ({
@@ -25,6 +26,7 @@ const MainButton: React.FC<MainButton> = ({
   type = "button",
   pulse,
   textSize,
+  compact = false,
 
 }) => {
 
@@ -41,7 +43,7 @@ const MainButton: React.FC<MainButton> = ({
 
   return (
     <button
-      className={`flex items-center justify-center w-full h-10 ${colorClasses[type]} 
+      className={`flex items-center justify-center w-full ${compact ? "h-7 px-3" : "h-10"} ${colorClasses[type]}
       focus:outline-none focus:ring-2 focus:ring-offset-2 rounded-md
       text-white font-medium ${disabled ? "opacity-50 cursor-not-allowed" : pulseClass} ${
         textSize ? textSize : "md:text-lg"
