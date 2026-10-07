@@ -7,7 +7,7 @@ process.env.MISSIONS_LAUNCH_AT = "2000-01-01T00:00:00.000Z";
 // only one replica set spins up (a second one starves the timing-sensitive round tests).
 const { MongoMemoryReplSet } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
-const { uniqueSuffix } = require("./helpers");
+const { uniqueSuffix, betOnDays } = require("./helpers");
 const User = require("../../models/User");
 const Transaction = require("../../models/Transaction");
 const Marketplace = require("../../models/Marketplace");
@@ -207,11 +207,11 @@ test("concurrent mission claims pay the reward exactly once", async () => {
 
 const { claimCommission } = require("../../utils/referrals");
 
-// a referrer with one referee who has wagered enough to earn commission
+// a referrer with one verified referee who has wagered enough to earn commission
 async function referrerWithEarnings(wagered) {
   const me = await makeUser(0);
   const referee = await makeUser(1000);
-  await User.updateOne({ _id: referee._id }, { $set: { referredBy: me._id } });
+  await User.updateOne({ _id: referee._id }, { $set: { referredBy: me._id, emailVerifiedAt: new Date() } });
   await Transaction.create({ userId: referee._id, type: TX.CRASH_BET, direction: "debit", amount: wagered });
   return me;
 }
@@ -245,17 +245,26 @@ test("concurrent commission claims pay exactly once", async () => {
   expect(await Transaction.countDocuments({ userId: me._id, type: TX.REFERRAL_COMMISSION })).toBe(1);
 });
 
-const { maybePayReferralMilestone, MILESTONE_LEVEL, MILESTONE_BONUS } = require("../../utils/referrals");
+const { maybePayReferralMilestone, MILESTONE_LEVEL, MILESTONE_DAYS, MILESTONE_BONUS } = require("../../utils/referrals");
 
+// only a verified referee earns the referrer anything
 async function referredPair() {
   const referrer = await makeUser(0);
   const referee = await makeUser(1000);
-  await User.updateOne({ _id: referee._id }, { $set: { referredBy: referrer._id } });
+  await User.updateOne({ _id: referee._id }, { $set: { referredBy: referrer._id, emailVerifiedAt: new Date() } });
   return { referrer, referee };
 }
 
+// and the milestone also wants the level and a week of play
+async function dueForMilestone() {
+  const pair = await referredPair();
+  await User.updateOne({ _id: pair.referee._id }, { $set: { level: MILESTONE_LEVEL } });
+  await betOnDays(pair.referee._id, MILESTONE_DAYS);
+  return pair;
+}
+
 test("a failed milestone credit rolls the paid flag back", async () => {
-  const { referrer, referee } = await referredPair();
+  const { referrer, referee } = await dueForMilestone();
   jest.spyOn(Transaction, "create").mockRejectedValueOnce(new Error("row write failed"));
 
   await maybePayReferralMilestone(referee._id, MILESTONE_LEVEL); // swallows the abort
@@ -268,8 +277,36 @@ test("a failed milestone credit rolls the paid flag back", async () => {
   expect((await User.findById(referrer._id)).walletBalance).toBe(MILESTONE_BONUS);
 });
 
-test("concurrent milestone triggers pay exactly once", async () => {
+const { settleOnVerified, REFERRER_SIGNUP_BONUS } = require("../../utils/referrals");
+
+test("a failed referrer bonus credit leaves the bonus owed", async () => {
   const { referrer, referee } = await referredPair();
+  await User.updateOne({ _id: referee._id }, { $set: { referralBonusPending: true } });
+  jest.spyOn(Transaction, "create").mockRejectedValueOnce(new Error("row write failed"));
+
+  await settleOnVerified(referee._id); // swallows the abort
+
+  expect((await User.findById(referee._id)).referralBonusPending).toBe(true); // still owed
+  expect((await User.findById(referrer._id)).walletBalance).toBe(0);
+  jest.restoreAllMocks();
+
+  await settleOnVerified(referee._id);
+  expect((await User.findById(referrer._id)).walletBalance).toBe(REFERRER_SIGNUP_BONUS);
+  expect((await User.findById(referee._id)).referralBonusPending).toBeUndefined();
+});
+
+test("concurrent verifications pay the referrer bonus exactly once", async () => {
+  const { referrer, referee } = await referredPair();
+  await User.updateOne({ _id: referee._id }, { $set: { referralBonusPending: true } });
+
+  await Promise.all([settleOnVerified(referee._id), settleOnVerified(referee._id)]);
+
+  expect((await User.findById(referrer._id)).walletBalance).toBe(REFERRER_SIGNUP_BONUS);
+  expect(await Transaction.countDocuments({ userId: referrer._id, type: TX.REFERRAL_BONUS })).toBe(1);
+});
+
+test("concurrent milestone triggers pay exactly once", async () => {
+  const { referrer, referee } = await dueForMilestone();
 
   await Promise.all([
     maybePayReferralMilestone(referee._id, MILESTONE_LEVEL),

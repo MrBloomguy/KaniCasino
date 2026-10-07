@@ -167,7 +167,8 @@ async function recordTransaction({ userId, type, direction, amount, balanceAfter
 async function accountBalance(accountId) {
   const id = new mongoose.Types.ObjectId(String(accountId));
   const [row] = await Transaction.aggregate([
-    { $match: { $or: [{ userId: id }, { counterparty: id }] } },
+    // required here: the fold reads this module's TX at load
+    ...(await require("./ledgerDays").stream({ $or: [{ userId: id }, { counterparty: id }] })),
     {
       $group: {
         _id: null,
@@ -323,7 +324,22 @@ async function awardXp(userId, xpAmount) {
     { new: true, projection: WITHOUT_INVENTORY }
   );
   if (!user) return null;
+  return raiseLevel(userId, user);
+}
 
+// the xp of a stake that has already settled, at the account's boosts like a bet's own; for a game whose xp waits on the outcome
+async function awardStakeXp(userId, cost, game) {
+  if (!(cost > 0)) return null;
+  const user = await User.findOneAndUpdate(
+    { _id: userId },
+    [{ $set: { xp: { $add: [{ $ifNull: ["$xp", 0] }, xpGainExpr(cost, game)] } } }],
+    { new: true, projection: { xp: 1, level: 1 } }
+  );
+  if (!user) return null;
+  return raiseLevel(userId, user);
+}
+
+async function raiseLevel(userId, user) {
   const newLevel = calculateLevelFromXp(user.xp);
   if (newLevel > (user.level || 0)) {
     user.level = newLevel;
@@ -340,6 +356,7 @@ module.exports = {
   chargeUser,
   creditUser,
   awardXp,
+  awardStakeXp,
   accountBalance,
   ledgerSupply,
   runAtomic,

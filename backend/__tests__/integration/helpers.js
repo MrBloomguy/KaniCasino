@@ -21,6 +21,9 @@ const discordRoutes = require("../../routes/discordRoutes");
 const daisuRoutes = require("../../routes/daisuRoutes");
 const arcadeRoutes = require("../../routes/arcadeRoutes");
 const usageRoutes = require("../../routes/usageRoutes");
+const accountRoutes = require("../../routes/accountRoutes");
+const Transaction = require("../../models/Transaction");
+const { TX } = require("../../utils/economy");
 
 // no-op socket.io stand-in
 const io = { emit: () => {}, to: () => ({ emit: () => {} }) };
@@ -51,6 +54,7 @@ function makeApp() {
   app.use("/daisu", daisuRoutes);
   app.use("/arcade", arcadeRoutes);
   app.use("/usage", usageRoutes);
+  app.use("/account", accountRoutes);
   return app;
 }
 
@@ -64,4 +68,11 @@ function uniqueSuffix() {
   return `${counter}-${process.hrtime.bigint()}`;
 }
 
-module.exports = { makeApp, tokenFor, io, uniqueSuffix };
+// a small bet on each of the last `days` utc days, today among them: the days played a referral milestone waits for
+async function betOnDays(userId, days) {
+  for (let i = 0; i < days; i++) {
+    await Transaction.create({ userId, type: TX.CRASH_BET, direction: "debit", amount: 10, createdAt: new Date(Date.now() - i * 864e5) });
+  }
+}
+
+module.exports = { makeApp, tokenFor, io, uniqueSuffix, betOnDays };

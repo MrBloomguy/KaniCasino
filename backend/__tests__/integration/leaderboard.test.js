@@ -6,6 +6,8 @@ const User = require("../../models/User");
 const Leaderboard = require("../../models/Leaderboard");
 const Transaction = require("../../models/Transaction");
 const Notification = require("../../models/Notification");
+const PredictionPosition = require("../../models/PredictionPosition");
+const mongoose = require("mongoose");
 const { TX } = require("../../utils/economy");
 const leaderboard = require("../../utils/leaderboard");
 
@@ -352,5 +354,86 @@ describe("the empty seats", () => {
     const done = await Leaderboard.findById(board._id);
     expect(done.standings).toHaveLength(1);
     expect(await Transaction.countDocuments({ type: TX.LEADERBOARD_PRIZE })).toBe(1);
+  });
+});
+
+describe("the live board", () => {
+  test("readers at the same moment share one recount", async () => {
+    const u = await makeUser();
+    await wager(u, TX.CASE_OPEN, 1000, midWindow());
+    const { startsAt, endsAt } = leaderboard.windowFor();
+
+    const spy = jest.spyOn(Transaction, "aggregate");
+    const reads = await Promise.all(Array.from({ length: 6 }, () => leaderboard.live(startsAt, endsAt)));
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+
+    expect(reads.every((read) => read === reads[0])).toBe(true);
+    expect(String(reads[0].rows[0]._id)).toBe(String(u._id));
+    expect(reads[0].points).toEqual([1500]);
+  });
+
+  test("a player's rank comes off the shared copy, never a recount of the field", async () => {
+    const players = [];
+    for (let i = 0; i < 4; i++) {
+      const u = await makeUser();
+      await wager(u, TX.CASE_OPEN, (i + 1) * 1000, midWindow());
+      players.push(u);
+    }
+    const { startsAt, endsAt } = leaderboard.windowFor();
+
+    const spy = jest.spyOn(Transaction, "aggregate");
+    const ranks = await Promise.all(players.map((u) => leaderboard.standingFor(u._id, startsAt, endsAt)));
+    // each player's own rows, plus one recount of the field for all four
+    expect(spy).toHaveBeenCalledTimes(players.length + 1);
+    spy.mockRestore();
+
+    expect(ranks.map((r) => r.rank)).toEqual([4, 3, 2, 1]);
+  });
+});
+
+describe("predictions", () => {
+  // a position as settlement leaves it
+  const settled = (user, stake, at, extra = {}) =>
+    PredictionPosition.create({
+      userId: user._id, predictionId: new mongoose.Types.ObjectId(), outcomeKey: "o1",
+      stake, settled: true, settledAt: at, ...extra,
+    });
+
+  test("score when the market resolves, on the stake still held; buying shares scores nothing", async () => {
+    const holder = await makeUser();
+    const churner = await makeUser();
+    const { startsAt, endsAt } = leaderboard.windowFor();
+    await wager(holder, TX.PREDICTION_BUY, 10000, midWindow());
+    await wager(churner, TX.PREDICTION_BUY, 10000, midWindow());
+    await settled(holder, 10000, midWindow());
+    // bought and sold straight back, which left two K₽ at stake
+    await settled(churner, 2, midWindow());
+    // a cancelled market refunds, so it was never a bet
+    await settled(churner, 5000, midWindow(), { voided: true });
+
+    const rows = await leaderboard.standings(startsAt, endsAt);
+    expect(rows.map((r) => [String(r._id), r.points, r.bets])).toEqual([[String(holder._id), 3000, 1]]);
+    expect(await leaderboard.standingFor(holder._id, startsAt, endsAt)).toEqual({ points: 3000, bets: 1, rank: 1 });
+    expect((await leaderboard.standingFor(churner._id, startsAt, endsAt)).points).toBe(0);
+  });
+
+  test("a market resolved on another day scores on that day", async () => {
+    const user = await makeUser();
+    const { startsAt, endsAt } = leaderboard.windowFor();
+    await settled(user, 10000, new Date(startsAt.getTime() - 60000));
+    expect(await leaderboard.standings(startsAt, endsAt)).toHaveLength(0);
+  });
+
+  test("a buy from before the switch keeps the points it scored when it was made", async () => {
+    const user = await makeUser();
+    const { startsAt, endsAt } = leaderboard.windowFor();
+    process.env.PREDICTION_STAKE_FROM = new Date(endsAt.getTime() + 60000).toISOString();
+    try {
+      await wager(user, TX.PREDICTION_BUY, 10000, midWindow());
+      expect((await leaderboard.standings(startsAt, endsAt))[0].points).toBe(3000);
+    } finally {
+      process.env.PREDICTION_STAKE_FROM = "2000-01-01T00:00:00Z";
+    }
   });
 });

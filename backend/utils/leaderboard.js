@@ -6,6 +6,9 @@ const Notification = require("../models/Notification");
 const { creditUser, TX } = require("./economy");
 const { SCORING_TYPES, pointsExpression } = require("./leaderboardPoints");
 const { VISIBLE } = require("./visibility");
+const memo = require("./memo");
+const verification = require("./verification");
+const predictionStake = require("./predictionStake");
 
 const noopIo = { to: () => ({ emit: () => {} }), emit: () => {} };
 
@@ -22,6 +25,11 @@ const PAID_PLACES = PRIZES.length;
 // stale, then another runner picks the board up rather than leaving what it still owes
 const SETTLEMENT_LEASE_MS = 120000;
 
+// how long the live board and the scores behind every rank are shared before one reader recounts them
+const LIVE_TTL_MS = 15000;
+// today's board document never changes while it runs, so it is read once per window
+const TODAY_TTL_MS = 10 * 60 * 1000;
+
 const prizeFor = (rank) => PRIZES[rank - 1] || 0;
 const totalPool = PRIZES.reduce((a, b) => a + b, 0);
 
@@ -36,41 +44,79 @@ function windowFor(at = new Date()) {
   return { startsAt, endsAt };
 }
 
-// the board, straight from the ledger. nothing is incremented on the money path, so a
-// bet cannot be double counted and there is no stored total to drift. one day is a few
-// thousand rows and { type, createdAt } already indexes it.
-async function standings(startsAt, endsAt, limit = PAID_PLACES) {
-  return Transaction.aggregate([
-    { $match: { type: { $in: SCORING_TYPES }, createdAt: { $gte: startsAt, $lt: endsAt } } },
-    { $group: { _id: "$userId", points: { $sum: pointsExpression() }, bets: { $sum: 1 } } },
-    { $match: { points: { $gt: 0 } } },
-    // ties break on the older account, so a redraw never reorders a settled board
-    { $sort: { points: -1, _id: 1 } },
-    // a buffer, because disabled accounts are dropped below and their places have to fill
-    { $limit: limit + 20 },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "_id",
-        as: "user",
-        // never the inventory: a deep one is two megabytes and this runs per board read
-        pipeline: [
-          {
-            $project: {
-              username: 1, slug: 1, profilePicture: 1, level: 1,
-              fixedItem: 1, fanRank: 1, selectedBadge: 1, badges: 1, disabled: 1,
-            },
+// from the lock date a board counts verified accounts only; one that started earlier keeps the rules it ran under
+const eligibleOnly = (startsAt) =>
+  verification.enforced(startsAt)
+    ? [
+        { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "who", pipeline: [{ $project: verification.VERIFIED_FIELDS }] } },
+        { $match: verification.verifiedFilter("who.") },
+        { $project: { who: 0 } },
+      ]
+    : [];
+
+// the window's bets: the ledger's, and the predictions whose market resolved inside it, on what was still held
+const betsIn = (startsAt, endsAt, match = {}) => [
+  { $match: { ...match, type: { $in: SCORING_TYPES }, createdAt: { $gte: startsAt, $lt: endsAt }, $nor: [predictionStake.laterBuys()] } },
+  predictionStake.resolvedAsBets({ ...match, settledAt: { $gte: startsAt, $lt: endsAt } }),
+];
+
+// every account's points in the window, best first. nothing is incremented on the money
+// path, so a bet cannot be double counted and there is no stored total to drift.
+const scored = (startsAt, endsAt) => [
+  ...betsIn(startsAt, endsAt),
+  { $group: { _id: "$userId", points: { $sum: pointsExpression() }, bets: { $sum: 1 } } },
+  { $match: { points: { $gt: 0 } } },
+  ...eligibleOnly(startsAt),
+  // ties break on the older account, so a redraw never reorders a settled board
+  { $sort: { points: -1, _id: 1 } },
+];
+
+// the first `limit` visible accounts of a scored list, with their cards
+const placed = (limit) => [
+  // a buffer, because disabled accounts are dropped below and their places have to fill
+  { $limit: limit + 20 },
+  {
+    $lookup: {
+      from: "users",
+      localField: "_id",
+      foreignField: "_id",
+      as: "user",
+      // never the inventory: a deep one is two megabytes and this runs per board read
+      pipeline: [
+        {
+          $project: {
+            username: 1, slug: 1, profilePicture: 1, level: 1,
+            fixedItem: 1, fanRank: 1, selectedBadge: 1, badges: 1, disabled: 1,
           },
-        ],
-      },
+        },
+      ],
     },
-    { $unwind: "$user" },
-    // the old weekly cron skipped this and could award a prize to a banned account that
-    // the public board did not even list
-    { $match: { "user.disabled": VISIBLE.disabled } },
-    { $limit: limit },
-  ]);
+  },
+  { $unwind: "$user" },
+  // the old weekly cron skipped this and could award a prize to a banned account that
+  // the public board did not even list
+  { $match: { "user.disabled": VISIBLE.disabled } },
+  { $limit: limit },
+];
+
+// the board, straight from the ledger. one day is a few thousand rows and { type, createdAt } already indexes it.
+async function standings(startsAt, endsAt, limit = PAID_PLACES) {
+  return Transaction.aggregate([...scored(startsAt, endsAt), ...placed(limit)]);
+}
+
+// the live board and every score behind it, shared by all readers: one recount per window however many
+// players ask, and the previous copy is served while it runs
+function live(startsAt, endsAt) {
+  return memo.remember(`leaderboard:live:${startsAt.getTime()}`, LIVE_TTL_MS, async () => {
+    const [facets] = await Transaction.aggregate([
+      ...scored(startsAt, endsAt),
+      { $facet: { board: placed(PAID_PLACES), all: [{ $group: { _id: null, points: { $push: "$points" } } }] } },
+    ]);
+    return {
+      rows: await padStandings(facets.board, PAID_PLACES, { verifiedOnly: verification.enforced(startsAt) }),
+      points: facets.all.length ? facets.all[0].points : [],
+    };
+  });
 }
 
 const CARD = "username slug profilePicture level fixedItem fanRank selectedBadge badges";
@@ -81,14 +127,15 @@ const CARD = "username slug profilePicture level fixedItem fanRank selectedBadge
 //
 // they carry no prize on purpose. settlement only pays a standing with points above zero,
 // so printing K₽1,200 beside somebody on nought would be telling them they had won it.
-async function padStandings(rows, limit) {
+async function padStandings(rows, limit, { verifiedOnly = false } = {}) {
   const missing = limit - rows.length;
   if (missing <= 0) return rows;
 
   const taken = rows.map((row) => row._id);
   // the biggest accounts first, so the empty seats read as names rather than as filler.
   // one indexed read of at most nine documents, behind the board's own cache.
-  const idle = await User.find({ _id: { $nin: taken }, ...VISIBLE })
+  // an empty seat says anyone could take it, so once the board needs verification it only offers verified accounts
+  const idle = await User.find({ _id: { $nin: taken }, ...VISIBLE, ...(verifiedOnly ? verification.verifiedFilter() : {}) })
     .sort({ level: -1, _id: 1 })
     .limit(missing)
     .select(CARD)
@@ -99,31 +146,20 @@ async function padStandings(rows, limit) {
   );
 }
 
-// what one player has scored today, and how far they are off the last paid place. read
-// separately from the board because they are usually not on it.
+// what one player has scored today, and where they sit. their own rows are read fresh, because
+// they are usually not on the board; the field they are ranked against is the shared copy.
 async function standingFor(userId, startsAt, endsAt) {
   const id = new mongoose.Types.ObjectId(String(userId));
   const [mine] = await Transaction.aggregate([
-    {
-      $match: {
-        userId: id,
-        type: { $in: SCORING_TYPES },
-        createdAt: { $gte: startsAt, $lt: endsAt },
-      },
-    },
+    ...betsIn(startsAt, endsAt, { userId: id }),
     { $group: { _id: null, points: { $sum: pointsExpression() }, bets: { $sum: 1 } } },
   ]);
   if (!mine || mine.points <= 0) return { points: 0, bets: 0, rank: null };
 
-  // rank is a count of who is ahead, which is one grouped pass rather than a full board
-  const ahead = await Transaction.aggregate([
-    { $match: { type: { $in: SCORING_TYPES }, createdAt: { $gte: startsAt, $lt: endsAt } } },
-    { $group: { _id: "$userId", points: { $sum: pointsExpression() } } },
-    { $match: { points: { $gt: mine.points } } },
-    { $count: "n" },
-  ]);
-
-  return { points: mine.points, bets: mine.bets, rank: (ahead[0] ? ahead[0].n : 0) + 1 };
+  // rank is a count of who is ahead; the shared scores run best first, so that is the first one not above mine
+  const { points } = await live(startsAt, endsAt);
+  const ahead = points.findIndex((p) => p <= mine.points);
+  return { points: mine.points, bets: mine.bets, rank: (ahead === -1 ? points.length : ahead) + 1 };
 }
 
 // the board document for the window containing `at`, created if this is the first read of
@@ -139,6 +175,12 @@ async function ensureToday(at = new Date()) {
     throw err;
   }
 }
+
+// today's board for the readers, from a copy kept for the window
+const today = () => {
+  const { startsAt } = windowFor();
+  return memo.remember(`leaderboard:today:${startsAt.getTime()}`, TODAY_TTL_MS, () => ensureToday());
+};
 
 // who this board already paid, from the ledger rather than the standings array: a runner
 // can die between the credit and the write that records it, and paying twice is worse
@@ -275,8 +317,10 @@ module.exports = {
   windowFor,
   standings,
   padStandings,
+  live,
   standingFor,
   ensureToday,
+  today,
   settleBoard,
   sweepBoards,
   ordinal,

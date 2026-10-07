@@ -17,6 +17,10 @@ const { loginLimiter, registerLimiter, registerDailyLimiter } = require("../midd
 const { sellValue } = require("../utils/itemValue");
 const { creditUser, recordTransaction, runAtomic, TX, WITHOUT_INVENTORY } = require("../utils/economy");
 const { findReferrer, payReferralBonuses } = require("../utils/referrals");
+const ledgerDays = require("../utils/ledgerDays");
+const verification = require("../utils/verification");
+const emailCheck = require("../utils/emailCheck");
+const ipSightings = require("../utils/ipSightings");
 const { sellUniqueIds } = require("../utils/inventorySell");
 const { copiesFor, countsFor } = require("../utils/inventoryCounts");
 const getRandomPlaceholderImage = require("../utils/placeholderImages");
@@ -62,6 +66,11 @@ router.post(
       if (userMail) {
         return res.status(400).json({ message: "Email already registered" });
       }
+      // a domain that takes no mail is a typo or made up, and could never verify the account later
+      const unusable = await emailCheck.signupProblem(email);
+      if (unusable) {
+        return res.status(400).json({ message: "That email address cannot receive mail", field: "email", ...unusable });
+      }
       // shape first: it needs no query, and a malformed name that also collides used to be
       // reported as taken rather than as the thing that was actually wrong with it
       const problem = signup.nameProblem(username);
@@ -104,6 +113,7 @@ router.post(
       await user.save();
       // the register limiters count accounts created, not requests attempted
       res.locals.createdAccount = true;
+      ipSightings.record(req, user._id);
 
       await recordTransaction({
         userId: user._id,
@@ -114,7 +124,7 @@ router.post(
         meta: { source: "register" },
       });
 
-      if (referrer) await payReferralBonuses(user, referrer);
+      if (referrer) await payReferralBonuses(user, referrer, { ipHash: ipSightings.requestHash(req) });
 
       // Generate and send JWT
       const payload = { userId: user.id, tokenVersion: user.tokenVersion || 0 };
@@ -174,6 +184,7 @@ router.post(
       if (user.disabled) {
         return res.status(403).json({ message: "This account has been disabled." });
       }
+      ipSightings.record(req, user._id);
 
       // Generate and send JWT
       const payload = { userId: user.id, tokenVersion: user.tokenVersion || 0 };
@@ -233,11 +244,14 @@ router.post('/googlelogin', registerLimiter, registerDailyLimiter, async (req, r
     if (!user.googleId) {
       // the field was never written before, so it backfills as older accounts sign in
       await User.updateOne({ _id: user._id }, { $set: { googleId: googlePayload.sub } });
+      // google just proved this account's address, which verifies it
+      await verification.onVerified(user._id);
     }
 
     if (user.disabled) {
       return res.status(403).json({ message: "This account has been disabled." });
     }
+    ipSightings.record(req, user._id);
     // Generate and send JWT
     const payload = { userId: user.id, tokenVersion: user.tokenVersion || 0 };
     jwt.sign(
@@ -308,6 +322,7 @@ router.post("/google/complete", registerLimiter, registerDailyLimiter, async (re
     if (referrer) user.referredBy = referrer._id;
     await user.save();
     res.locals.createdAccount = true;
+    ipSightings.record(req, user._id);
 
     await recordTransaction({
       userId: user._id,
@@ -318,7 +333,7 @@ router.post("/google/complete", registerLimiter, registerDailyLimiter, async (re
       meta: { source: "google" },
     });
 
-    if (referrer) await payReferralBonuses(user, referrer);
+    if (referrer) await payReferralBonuses(user, referrer, { ipHash: ipSightings.requestHash(req) });
 
     const payload = { userId: user.id, tokenVersion: user.tokenVersion || 0 };
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "30d" }, (err, jwtToken) => {
@@ -374,6 +389,8 @@ router.get("/me", authMiddleware.isAuthenticated, async (req, res) => {
       fixedItem
     } = req.user;
 
+    ipSightings.record(req, req.user._id);
+
     // verify in Notification model if there are unread notifications for the user
     const unreadNotifications = await Notification.find({ receiverId: req.user._id, read: false });
     const hasUnreadNotifications = unreadNotifications.length > 0;
@@ -394,6 +411,7 @@ router.get("/me", authMiddleware.isAuthenticated, async (req, res) => {
       badge: badges.wornBadge(req.user),
       cardStyle: cardStyles.wornStyle(req.user),
       cardStyles: cardStyles.heldStyles(req.user),
+      verification: verification.statusOf(req.user),
     });
   } catch (err) {
     console.error(err.message);
@@ -488,6 +506,8 @@ router.get('/transactions', authMiddleware.isAuthenticated, async (req, res) => 
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       total,
+      // how long game rows stay listed once they are folded into daily totals, or null while nothing is deleted
+      retention: ledgerDays.retention(),
     });
   } catch (err) {
     console.error(err);

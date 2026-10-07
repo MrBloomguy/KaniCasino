@@ -1,13 +1,14 @@
 const mongoose = require("mongoose");
 const Transaction = require("../models/Transaction");
+const ledgerDays = require("./ledgerDays");
 const Battle = require("../models/Battle");
 const User = require("../models/User");
-const { countsFor } = require("./inventoryCounts");
-const Case = require("../models/Case");
 const MissionState = require("../models/MissionState");
 const { creditUser, runAtomic, TX, STAKE_TYPES } = require("./economy");
 const { CATALOG, byKey, missionsLaunchAt } = require("./missionsCatalog");
+const { collectionsProgress } = require("./collectionCheck");
 const badges = require("./badges");
+const predictionStake = require("./predictionStake");
 
 // a "big win" is any single game payout; pushes and refunds are returned stakes, not wins
 const WIN_TYPES = [TX.SLOT_WIN, TX.PLINKO_WIN, TX.BLACKJACK_WIN, TX.DICE_WIN, TX.MINES_WIN, TX.HILO_WIN, TX.CRASH_CASHOUT, TX.COINFLIP_WIN, TX.PREDICTION_PAYOUT];
@@ -16,74 +17,45 @@ const WIN_TYPES = [TX.SLOT_WIN, TX.PLINKO_WIN, TX.BLACKJACK_WIN, TX.DICE_WIN, TX
 // never shown, announced, or claimable
 const ACTIVE = CATALOG.filter((m) => m.active !== false);
 
-// case collections the user has fully completed vs how many cases have items.
-// populate + drop null (deleted) refs so "complete" matches exactly what the
-// collections tab shows: a dangling item id is not a slot the album counts either.
-async function collectionsProgress(userId) {
-  const owned = new Set((await countsFor(userId)).keys());
-  if (!owned.size) return { done: 0, total: 0 };
-  const cases = await Case.find({}, { items: 1 }).populate("items", "_id");
-  let done = 0;
-  let total = 0;
-  for (const c of cases) {
-    const items = [...new Set((c.items || []).filter(Boolean).map((it) => String(it._id)))];
-    if (!items.length) continue;
-    total += 1;
-    if (items.every((id) => owned.has(id))) done += 1;
-  }
-  return { done, total };
-}
-
 async function countCompletedCollections(userId) {
   return (await collectionsProgress(userId)).done;
 }
 
-// ensure the per-user state doc exists, then return it
+// the per-user state doc, created on first use
 async function getState(userId) {
-  await MissionState.updateOne({ userId }, { $setOnInsert: { userId } }, { upsert: true });
-  return MissionState.findOne({ userId });
+  return MissionState.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { upsert: true, new: true });
 }
 
 // gather every signal the catalog needs in one pass. progress is derived, never
 // stored, and only activity at/after the launch timestamp counts.
 async function buildContext(userId, { includeCollections = true, state = null } = {}) {
   const launch = missionsLaunchAt();
-  const [txAgg, battlesWon, collectionsCompleted, user, st] = await Promise.all([
-    Transaction.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(String(userId)), createdAt: { $gte: launch } } },
-      {
-        $group: {
-          _id: "$type",
-          count: { $sum: 1 },
-          qty: { $sum: { $ifNull: ["$meta.quantity", 0] } },
-          maxAmount: { $max: "$amount" },
-          sumAmount: { $sum: "$amount" },
-          // rows without a side-bet marker: for blackjack this counts hands, not
-          // the extra double/split/insurance charges on the same hand
-          baseCount: {
-            $sum: {
-              $cond: [
-                {
-                  $or: [
-                    { $eq: ["$meta.double", true] },
-                    { $eq: ["$meta.split", true] },
-                    { $eq: ["$meta.insurance", true] },
-                  ],
-                },
-                0,
-                1,
-              ],
-            },
+  const [txAgg, battlesWon, collectionsCompleted, user, st, predicted] = await Promise.all([
+    ledgerDays.stream({ userId: new mongoose.Types.ObjectId(String(userId)) }, { since: launch }).then((stages) =>
+      Transaction.aggregate([
+        ...stages,
+        {
+          $group: {
+            _id: "$type",
+            count: { $sum: "$count" },
+            qty: { $sum: "$qty" },
+            maxAmount: { $max: "$max" },
+            sumAmount: { $sum: "$amount" },
+            // rows without a side-bet marker: for blackjack this counts hands, not
+            // the extra double/split/insurance charges on the same hand
+            baseCount: { $sum: "$base" },
+            laterBuys: predictionStake.laterBuyAmount(),
           },
         },
-      },
-    ]),
+      ])
+    ),
     Battle.countDocuments({ winnerUserIds: userId, status: "finished", finishedAt: { $gte: launch } }),
     // the collections scan is the one heavy read; skip it on frequent hot-path calls
     includeCollections ? collectionsProgress(userId) : Promise.resolve({ done: 0, total: 0 }),
     User.findById(userId, { profilePicture: 1, friends: 1, level: 1, walletBalance: 1, discordId: 1, discordInGuild: 1 }),
     // reuse an already-loaded state doc when the caller has one, to avoid re-reading it
     state || getState(userId),
+    predictionStake.resolvedSince(userId, launch),
   ]);
 
   const byType = {};
@@ -93,7 +65,9 @@ async function buildContext(userId, { includeCollections = true, state = null } 
   const openRow = byType[TX.CASE_OPEN];
   const casesOpened = openRow ? openRow.qty || openRow.count : 0; // sum of quantities, count as fallback
   const bigWin = WIN_TYPES.reduce((m, t) => Math.max(m, byType[t] ? byType[t].maxAmount || 0 : 0), 0);
-  const totalWagered = STAKE_TYPES.reduce((s, t) => s + sum(t), 0);
+  // a prediction is staked when its market resolves, not when its shares are bought
+  const laterBuys = byType[TX.PREDICTION_BUY] ? byType[TX.PREDICTION_BUY].laterBuys || 0 : 0;
+  const totalWagered = STAKE_TYPES.reduce((s, t) => s + sum(t), 0) - laterBuys + predicted;
 
   return {
     casesOpened,
